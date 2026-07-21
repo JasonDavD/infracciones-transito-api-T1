@@ -11,9 +11,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import edu.pe.cibertec.taller.excepcion.CitaNoCancelableException;
+import edu.pe.cibertec.taller.excepcion.CitaNoEncontradaException;
 import edu.pe.cibertec.taller.excepcion.EspecialidadIncorrectaException;
+import edu.pe.cibertec.taller.excepcion.FechaInvalidaException;
 import edu.pe.cibertec.taller.excepcion.HorarioNoPermitidoException;
 import edu.pe.cibertec.taller.excepcion.MecanicoNoEncontradoException;
+import edu.pe.cibertec.taller.excepcion.SinDisponibilidadException;
 import edu.pe.cibertec.taller.modelo.Cita;
 import edu.pe.cibertec.taller.modelo.EstadoCita;
 import edu.pe.cibertec.taller.modelo.Mecanico;
@@ -25,6 +28,7 @@ import edu.pe.cibertec.taller.servicio.impl.ServicioCitasImpl;
 import edu.pe.cibertec.taller.util.ProveedorFechaHora;
 import edu.pe.cibertec.taller.util.ServicioNotificaciones;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -253,5 +257,79 @@ class ServicioCitasImplTest {
 		// Act y Assert
 		assertThrows(CitaNoCancelableException.class, () -> servicioCitas.cancelarCita(1L));
 		verify(repositorioCitas, never()).save(any(Cita.class));
+	}
+
+	// ==========================================================
+	// PRUEBAS ADICIONALES: cobertura del resto de reglas del servicio
+	// ==========================================================
+
+	@Test
+	@DisplayName("EXTRA - Agendar en una fecha del pasado lanza FechaInvalidaException y no guarda")
+	void agendarConFechaEnElPasado() {
+		// Arrange
+		Mecanico mecanicoZafiro = new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE);
+		when(repositorioMecanicos.findById(1L)).thenReturn(Optional.of(mecanicoZafiro));
+		// Anterior al reloj simulado (09/09/2026 08:00)
+		LocalDateTime fechaPasada = LocalDateTime.of(2026, 9, 8, 10, 0);
+
+		// Act y Assert
+		assertThrows(FechaInvalidaException.class,
+				() -> servicioCitas.agendarCita(1L, PLACA, TipoServicio.CAMBIO_ACEITE, fechaPasada));
+		verify(repositorioCitas, never()).save(any(Cita.class));
+	}
+
+	@Test
+	@DisplayName("EXTRA - Cancelar una cita inexistente lanza CitaNoEncontradaException y no guarda")
+	void cancelarCitaInexistente() {
+		// Arrange
+		Long idCitaZafiro = 99L;
+		when(repositorioCitas.findById(idCitaZafiro)).thenReturn(Optional.empty());
+
+		// Act y Assert
+		assertThrows(CitaNoEncontradaException.class, () -> servicioCitas.cancelarCita(idCitaZafiro));
+		verify(repositorioCitas, never()).save(any(Cita.class));
+	}
+
+	@Test
+	@DisplayName("EXTRA - Buscar mecanico disponible retorna el primero sin citas superpuestas")
+	void buscarMecanicoDisponibleRetornaPrimeroLibre() {
+		// Arrange
+		Mecanico mecanicoOcupado = new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE);
+		Mecanico mecanicoLibreZafiro = new Mecanico(2L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE);
+		when(repositorioMecanicos.findByEspecialidad(TipoServicio.CAMBIO_ACEITE))
+				.thenReturn(List.of(mecanicoOcupado, mecanicoLibreZafiro));
+		Cita citaOcupada = new Cita();
+		citaOcupada.setFechaHoraInicio(elDiaALas(10));
+		citaOcupada.setDuracionHoras(1);
+		citaOcupada.setEstado(EstadoCita.PROGRAMADA);
+		when(repositorioCitas.findByMecanicoIdAndEstado(1L, EstadoCita.PROGRAMADA))
+				.thenReturn(List.of(citaOcupada));
+		when(repositorioCitas.findByMecanicoIdAndEstado(2L, EstadoCita.PROGRAMADA))
+				.thenReturn(List.of());
+
+		// Act
+		Mecanico mecanicoDisponible = servicioCitas.buscarMecanicoDisponible(TipoServicio.CAMBIO_ACEITE, elDiaALas(10));
+
+		// Assert
+		assertEquals(mecanicoLibreZafiro, mecanicoDisponible);
+	}
+
+	@Test
+	@DisplayName("EXTRA - Buscar mecanico cuando ninguno esta libre lanza SinDisponibilidadException")
+	void buscarMecanicoSinDisponibilidad() {
+		// Arrange
+		Mecanico mecanicoOcupadoZafiro = new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE);
+		when(repositorioMecanicos.findByEspecialidad(TipoServicio.CAMBIO_ACEITE))
+				.thenReturn(List.of(mecanicoOcupadoZafiro));
+		Cita citaOcupada = new Cita();
+		citaOcupada.setFechaHoraInicio(elDiaALas(10));
+		citaOcupada.setDuracionHoras(1);
+		citaOcupada.setEstado(EstadoCita.PROGRAMADA);
+		when(repositorioCitas.findByMecanicoIdAndEstado(1L, EstadoCita.PROGRAMADA))
+				.thenReturn(List.of(citaOcupada));
+
+		// Act y Assert
+		assertThrows(SinDisponibilidadException.class,
+				() -> servicioCitas.buscarMecanicoDisponible(TipoServicio.CAMBIO_ACEITE, elDiaALas(10)));
 	}
 }
