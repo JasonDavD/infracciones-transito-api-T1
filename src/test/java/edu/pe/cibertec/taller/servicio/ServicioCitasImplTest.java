@@ -2,6 +2,7 @@ package edu.pe.cibertec.taller.servicio;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -9,12 +10,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import edu.pe.cibertec.taller.excepcion.CitaNoCancelableException;
 import edu.pe.cibertec.taller.excepcion.EspecialidadIncorrectaException;
 import edu.pe.cibertec.taller.excepcion.HorarioNoPermitidoException;
 import edu.pe.cibertec.taller.excepcion.MecanicoNoEncontradoException;
 import edu.pe.cibertec.taller.modelo.Cita;
 import edu.pe.cibertec.taller.modelo.EstadoCita;
 import edu.pe.cibertec.taller.modelo.Mecanico;
+import edu.pe.cibertec.taller.modelo.ResultadoCancelacion;
 import edu.pe.cibertec.taller.modelo.TipoServicio;
 import edu.pe.cibertec.taller.repositorio.RepositorioCitas;
 import edu.pe.cibertec.taller.repositorio.RepositorioMecanicos;
@@ -179,6 +182,76 @@ class ServicioCitasImplTest {
 		// Act y Assert
 		assertThrows(HorarioNoPermitidoException.class,
 				() -> servicioCitas.agendarCita(1L, PLACA, TipoServicio.REPARACION_MOTOR, elDiaALas(12)));
+		verify(repositorioCitas, never()).save(any(Cita.class));
+	}
+
+	// ==========================================================
+	// PREGUNTA 03: Cancelacion de citas
+	// ==========================================================
+
+	@Test
+	@DisplayName("PREGUNTA 03 - Cancelar con exactamente 24 horas de anticipacion no aplica penalidad y queda CANCELADA")
+	void cancelarConVeinticuatroHorasExactas() {
+		// Arrange
+		Cita citaZafiro = new Cita();
+		citaZafiro.setId(1L);
+		citaZafiro.setPlacaVehiculo(PLACA);
+		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
+		citaZafiro.setFechaHoraInicio(elDiaALas(10));
+		citaZafiro.setDuracionHoras(1);
+		citaZafiro.setEstado(EstadoCita.PROGRAMADA);
+		when(repositorioCitas.findById(1L)).thenReturn(Optional.of(citaZafiro));
+		// Exactamente 24 h antes de las 10:00 del DIA -> el limite cae justo en el inicio
+		when(proveedorFechaHora.ahora()).thenReturn(LocalDateTime.of(2026, 9, 9, 10, 0));
+
+		// Act
+		ResultadoCancelacion resultado = servicioCitas.cancelarCita(1L);
+
+		// Assert
+		assertTrue(resultado.isExitoso());
+		assertEquals(0.0, resultado.getMontoPenalidad());
+		assertEquals(EstadoCita.CANCELADA, citaZafiro.getEstado());
+		verify(servicioNotificaciones, times(1)).notificarCitaCancelada(citaZafiro);
+	}
+
+	@Test
+	@DisplayName("PREGUNTA 03 - Cancelar con 2 horas de anticipacion aplica una penalidad de 50.00")
+	void cancelarConDosHorasDeAnticipacion() {
+		// Arrange
+		Cita citaZafiro = new Cita();
+		citaZafiro.setId(1L);
+		citaZafiro.setPlacaVehiculo(PLACA);
+		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
+		citaZafiro.setFechaHoraInicio(elDiaALas(10));
+		citaZafiro.setDuracionHoras(1);
+		citaZafiro.setEstado(EstadoCita.PROGRAMADA);
+		when(repositorioCitas.findById(1L)).thenReturn(Optional.of(citaZafiro));
+		// 2 h antes de las 10:00 del DIA
+		when(proveedorFechaHora.ahora()).thenReturn(elDiaALas(8));
+
+		// Act
+		ResultadoCancelacion resultado = servicioCitas.cancelarCita(1L);
+
+		// Assert
+		assertEquals(50.0, resultado.getMontoPenalidad());
+		assertEquals(EstadoCita.CANCELADA, citaZafiro.getEstado());
+	}
+
+	@Test
+	@DisplayName("PREGUNTA 03 - Cancelar una cita ya ATENDIDA lanza CitaNoCancelableException y no guarda")
+	void cancelarCitaYaAtendida() {
+		// Arrange
+		Cita citaZafiro = new Cita();
+		citaZafiro.setId(1L);
+		citaZafiro.setPlacaVehiculo(PLACA);
+		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
+		citaZafiro.setFechaHoraInicio(elDiaALas(10));
+		citaZafiro.setDuracionHoras(1);
+		citaZafiro.setEstado(EstadoCita.ATENDIDA);
+		when(repositorioCitas.findById(1L)).thenReturn(Optional.of(citaZafiro));
+
+		// Act y Assert
+		assertThrows(CitaNoCancelableException.class, () -> servicioCitas.cancelarCita(1L));
 		verify(repositorioCitas, never()).save(any(Cita.class));
 	}
 }
