@@ -1,0 +1,29 @@
+name: Verificacion
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    name: Compilar y ejecutar pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Dar permiso de ejecucion al Maven Wrapper
+        run: chmod +x mvnw
+
+      - name: Compilar y ejecutar pruebas (sin base de datos)
+        run: ./mvnw --batch-mode --no-transfer-progress clean verify
