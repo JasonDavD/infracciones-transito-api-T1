@@ -199,6 +199,7 @@ class ServicioCitasImplTest {
 		// Arrange
 		Cita citaZafiro = new Cita();
 		citaZafiro.setId(1L);
+		citaZafiro.setMecanico(new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE));
 		citaZafiro.setPlacaVehiculo(PLACA);
 		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
 		citaZafiro.setFechaHoraInicio(elDiaALas(10));
@@ -224,6 +225,7 @@ class ServicioCitasImplTest {
 		// Arrange
 		Cita citaZafiro = new Cita();
 		citaZafiro.setId(1L);
+		citaZafiro.setMecanico(new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE));
 		citaZafiro.setPlacaVehiculo(PLACA);
 		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
 		citaZafiro.setFechaHoraInicio(elDiaALas(10));
@@ -247,6 +249,7 @@ class ServicioCitasImplTest {
 		// Arrange
 		Cita citaZafiro = new Cita();
 		citaZafiro.setId(1L);
+		citaZafiro.setMecanico(new Mecanico(1L, NOMBRE_MECANICO, TipoServicio.CAMBIO_ACEITE));
 		citaZafiro.setPlacaVehiculo(PLACA);
 		citaZafiro.setTipoServicio(TipoServicio.CAMBIO_ACEITE);
 		citaZafiro.setFechaHoraInicio(elDiaALas(10));
