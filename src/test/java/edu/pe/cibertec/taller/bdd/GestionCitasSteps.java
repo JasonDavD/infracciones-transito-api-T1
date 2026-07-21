@@ -65,7 +65,7 @@ public class GestionCitasSteps {
 		Cita citaZafiro = new Cita();
 		citaZafiro.setId(100L);
 		citaZafiro.setMecanico(mecanicoOcupado);
-		citaZafiro.setPlacaVehiculo("AAA-111");
+		citaZafiro.setPlacaVehiculo("DAV-540");
 		citaZafiro.setTipoServicio(TipoServicio.MANTENIMIENTO_LIGERO);
 		citaZafiro.setFechaHoraInicio(LocalDateTime.of(2026, 9, 10, 10, 0));
 		citaZafiro.setDuracionHoras(2);
